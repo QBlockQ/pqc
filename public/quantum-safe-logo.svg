@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <defs>
+    <linearGradient id="greenGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3DFF38"/>
+      <stop offset="100%" style="stop-color:#22D3EE"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(100, 100) scale(0.6)">
+    <!-- Upper part (green) -->
+    <path d="M250 50 C 350 100, 400 150, 400 200 L 250 300 L 100 200 C 100 150, 150 100, 250 50" fill="url(#greenGradient)"/>
+    <!-- Lower part (blue) -->
+    <path d="M250 300 L 400 200 C 400 250, 350 300, 250 350 C 150 300, 100 250, 100 200 L 250 300" fill="#22D3EE"/>
+  </g>
+  <!-- Text -->
+  <text x="250" y="380" text-anchor="middle" font-family="Arial, sans-serif" font-weight="bold" font-size="48" fill="white">QUANTUM-SAFE</text>
+  <text x="250" y="430" text-anchor="middle" font-family="Arial, sans-serif" font-weight="bold" font-size="36" fill="#3DFF38">Qbits</text>
+  <!-- Decorative lines -->
+  <line x1="150" y1="405" x2="350" y2="405" stroke="white" stroke-width="2"/>
+</svg>

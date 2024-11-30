@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Qbits Post-Quantum Cryptography
+
+A modern web application for secure file encryption using post-quantum cryptography algorithms. This project implements Kyber, a lattice-based Key Encapsulation Mechanism (KEM) that is designed to be secure against both classical and quantum computer attacks.
+
+## Version 1.0.1
+
+Current stable release with full encryption and decryption capabilities, featuring the new Quantum-Safe Qbits branding.
+
+## Features
+
+- 🔒 Post-quantum secure file encryption using Kyber
+- 🔑 Hybrid encryption combining Kyber KEM with AES-GCM
+- 📁 Intuitive drag-and-drop interface for files
+- 🎯 Separate tabs for encryption and decryption operations
+- 🔄 WebAssembly integration for optimal performance
+- 🎨 Modern UI with shadcn/ui components
+- 🌓 Light/dark mode with smooth transitions
+- 🔔 Toast notifications for user feedback
+- ⚡ Built with Next.js for optimal performance
 
 ## Getting Started
 
-First, run the development server:
+First, install the dependencies:
+
+```bash
+npm install
+```
+
+Then, run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Post-Quantum Cryptography Implementation
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+This project includes a TypeScript implementation of the Kyber key encapsulation mechanism integrated with WebAssembly. The current implementation demonstrates the complete encryption workflow:
+
+1. Hybrid encryption system using Kyber for key exchange
+2. AES-GCM for file content encryption
+3. Secure key encapsulation and decapsulation
+4. File integrity protection
+
+### Security Features
+
+- Hybrid encryption combining classical (AES-GCM) and post-quantum (Kyber) algorithms
+- Secure key generation and management
+- File integrity verification
+- Proper error handling and user feedback
+
+## Tech Stack
+
+- Next.js 15.0.3
+- React 19
+- TypeScript
+- Tailwind CSS
+- shadcn/ui
+- Radix UI components
+- WebAssembly
+- Kyber (post-quantum cryptography)
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+MIT License - feel free to use this code for your own projects.
 
 ## Learn More
 
-To learn more about Next.js, take a look at the following resources:
+To learn more about the technologies used in this project:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [Next.js Documentation](https://nextjs.org/docs)
+- [NIST Post-Quantum Cryptography](https://csrc.nist.gov/projects/post-quantum-cryptography)
+- [Kyber Algorithm](https://pq-crystals.org/kyber/)
+- [shadcn/ui Documentation](https://ui.shadcn.com)
