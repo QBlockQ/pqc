@@ -67,7 +67,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-MIT License - feel free to use this code for your own projects.
+Apache license 2.0.
 
 ## Learn More
 
