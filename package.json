@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "build:wasm": "cd src/lib/pqc/wasm && chmod +x build.sh && ./build.sh",
+    "dev": "npm run build:wasm && node scripts/copy-wasm.js && NODE_OPTIONS='--inspect' next dev",
+    "build": "npm run build:wasm && node scripts/copy-wasm.js && next build",
     "start": "next start",
     "lint": "next lint"
   },
@@ -35,7 +36,9 @@
     "autoprefixer": "^10.0.1",
     "eslint": "^8",
     "eslint-config-next": "14.0.4",
+    "file-loader": "^6.2.0",
     "postcss": "^8",
+    "source-map-loader": "^5.0.0",
     "tailwindcss": "^3.3.0",
     "typescript": "^5"
   }

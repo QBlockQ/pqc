@@ -14,9 +14,11 @@ export class KyberKEM {
   private securityLevel: number;
   private wasmModule: any;
   private isInitialized: boolean = false;
+  private initializationPromise: Promise<void> | null = null;
 
   private constructor(securityLevel = KYBER_K.KYBER768) {
     this.securityLevel = securityLevel;
+    this.initializationPromise = this.initialize();
   }
 
   public static getInstance(securityLevel = KYBER_K.KYBER768): KyberKEM {
@@ -27,54 +29,90 @@ export class KyberKEM {
   }
 
   private async initialize() {
-    if (!this.isInitialized) {
-      try {
-        this.wasmModule = await kyberWasm({
-          locateFile: (path: string) => {
-            if (path.endsWith('.wasm')) {
-              return '/kyber.wasm';
-            }
-            return path;
-          },
-          ENVIRONMENT: 'WEB',
-        });
-        this.isInitialized = true;
-      } catch (error) {
-        console.error('Failed to initialize Kyber WASM module:', error);
-        throw new Error('Failed to initialize Kyber encryption');
+    if (this.isInitialized) return;
+    
+    try {
+      console.log('Initializing Kyber WASM module...');
+      
+      // Configure the module
+      const wasmUrl = '/kyber.wasm';
+      const wasmResponse = await fetch(wasmUrl);
+      if (!wasmResponse.ok) {
+        throw new Error(`Failed to fetch WASM file: ${wasmResponse.status} ${wasmResponse.statusText}`);
       }
+
+      const wasmBinary = await wasmResponse.arrayBuffer();
+      
+      this.wasmModule = await kyberWasm({
+        wasmBinary,
+        onRuntimeInitialized: () => {
+          console.log('Kyber WASM runtime initialized successfully');
+        }
+      });
+      
+      // Verify the module was loaded correctly
+      if (!this.wasmModule._malloc_wrapper || !this.wasmModule._crypto_kem_keypair) {
+        throw new Error('WASM module initialization failed: required functions not found');
+      }
+
+      this.isInitialized = true;
+      console.log('Kyber WASM module initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize Kyber module:', error);
+      throw error;
+    }
+  }
+
+  private async ensureInitialized() {
+    if (this.initializationPromise) {
+      await this.initializationPromise;
+    }
+    if (!this.isInitialized) {
+      throw new Error('Kyber module not initialized');
     }
   }
 
   // Generate a key pair
   public async generateKeyPair(): Promise<{ publicKey: Uint8Array; privateKey: Uint8Array }> {
-    await this.initialize();
-    
-    const publicKeyPtr = this.wasmModule._malloc_wrapper(this.securityLevel * 384);
-    const privateKeyPtr = this.wasmModule._malloc_wrapper(this.securityLevel * 384);
+    await this.ensureInitialized();
     
     try {
-      const result = this.wasmModule._crypto_kem_keypair(publicKeyPtr, privateKeyPtr);
-      if (result !== 0) {
-        throw new Error('Failed to generate key pair');
+      console.log('Generating key pair...');
+      
+      console.log('Allocating memory for keys...');
+      const publicKeyPtr = this.wasmModule._malloc_wrapper(this.securityLevel * 384);
+      const privateKeyPtr = this.wasmModule._malloc_wrapper(this.securityLevel * 384);
+      
+      try {
+        console.log('Calling crypto_kem_keypair...');
+        const result = this.wasmModule._crypto_kem_keypair(publicKeyPtr, privateKeyPtr);
+        if (result !== 0) {
+          throw new Error('Failed to generate key pair');
+        }
+
+        console.log('Creating Uint8Arrays from pointers...');
+        const publicKey = new Uint8Array(this.wasmModule.HEAPU8.buffer, publicKeyPtr, this.securityLevel * 384);
+        const privateKey = new Uint8Array(this.wasmModule.HEAPU8.buffer, privateKeyPtr, this.securityLevel * 384);
+
+        console.log('Key pair generated successfully');
+        return {
+          publicKey: new Uint8Array(publicKey),
+          privateKey: new Uint8Array(privateKey),
+        };
+      } finally {
+        console.log('Freeing memory...');
+        this.wasmModule._free_wrapper(publicKeyPtr);
+        this.wasmModule._free_wrapper(privateKeyPtr);
       }
-
-      const publicKey = new Uint8Array(this.wasmModule.HEAPU8.buffer, publicKeyPtr, this.securityLevel * 384);
-      const privateKey = new Uint8Array(this.wasmModule.HEAPU8.buffer, privateKeyPtr, this.securityLevel * 384);
-
-      return {
-        publicKey: new Uint8Array(publicKey),
-        privateKey: new Uint8Array(privateKey),
-      };
-    } finally {
-      this.wasmModule._free_wrapper(publicKeyPtr);
-      this.wasmModule._free_wrapper(privateKeyPtr);
+    } catch (error) {
+      console.error('Error in generateKeyPair:', error);
+      throw error;
     }
   }
 
   // Encapsulate a shared secret using a public key
   public async encapsulate(publicKey: Uint8Array): Promise<{ ciphertext: Uint8Array; sharedSecret: Uint8Array }> {
-    await this.initialize();
+    await this.ensureInitialized();
     
     const publicKeyPtr = this.wasmModule._malloc_wrapper(this.securityLevel * 384);
     const ciphertextPtr = this.wasmModule._malloc_wrapper(this.securityLevel * 736);
@@ -104,7 +142,7 @@ export class KyberKEM {
 
   // Decapsulate a shared secret using a private key and ciphertext
   public async decapsulate(privateKey: Uint8Array, ciphertext: Uint8Array): Promise<Uint8Array> {
-    await this.initialize();
+    await this.ensureInitialized();
     
     const privateKeyPtr = this.wasmModule._malloc_wrapper(this.securityLevel * 384);
     const ciphertextPtr = this.wasmModule._malloc_wrapper(this.securityLevel * 736);

@@ -4,7 +4,12 @@ export class FileEncryptionService {
   private kyber: KyberKEM;
 
   constructor() {
-    this.kyber = KyberKEM.getInstance();
+    try {
+      this.kyber = KyberKEM.getInstance();
+    } catch (error) {
+      console.error('Failed to initialize encryption service:', error);
+      throw new Error('Failed to initialize encryption service. Please try again.');
+    }
   }
 
   private async fileToArrayBuffer(file: File): Promise<ArrayBuffer> {
@@ -54,14 +59,21 @@ export class FileEncryptionService {
 
   public async encrypt(file: File, publicKey: Uint8Array): Promise<{ encryptedFile: File; encryptedKey: Uint8Array }> {
     try {
+      console.log('Starting file encryption process...');
+      
       // Generate AES key for file encryption
+      console.log('Generating AES key...');
       const aesKey = await this.generateAESKey();
       const iv = window.crypto.getRandomValues(new Uint8Array(12));
+      console.log('AES key generated successfully');
       
       // Convert file to ArrayBuffer
+      console.log('Converting file to ArrayBuffer...');
       const fileBuffer = await this.fileToArrayBuffer(file);
+      console.log('File converted to ArrayBuffer, size:', fileBuffer.byteLength);
       
       // Encrypt file with AES key
+      console.log('Encrypting file with AES-GCM...');
       const encryptedContent = await window.crypto.subtle.encrypt(
         {
           name: 'AES-GCM',
@@ -70,24 +82,34 @@ export class FileEncryptionService {
         aesKey,
         fileBuffer
       );
+      console.log('File encrypted successfully');
 
       // Export AES key
+      console.log('Exporting AES key...');
       const aesKeyBuffer = await this.exportKey(aesKey);
+      console.log('AES key exported successfully');
       
       // Encrypt AES key with Kyber
+      console.log('Encapsulating key with Kyber...');
+      console.log('Public key length:', publicKey.length);
       const { ciphertext } = await this.kyber.encapsulate(publicKey);
+      console.log('Key encapsulated successfully');
       
       // Combine IV and encrypted content
+      console.log('Combining IV and encrypted content...');
       const encryptedBuffer = new Uint8Array(iv.length + encryptedContent.byteLength);
       encryptedBuffer.set(iv, 0);
       encryptedBuffer.set(new Uint8Array(encryptedContent), iv.length);
+      console.log('Combined successfully');
       
       // Create encrypted file
+      console.log('Creating final encrypted file...');
       const encryptedFile = await this.arrayBufferToFile(
         encryptedBuffer,
-        `${file.name}.encrypted`,
-        'application/octet-stream'
+        `${file.name}.enc`,
+        file.type || 'application/octet-stream'
       );
+      console.log('Encrypted file created successfully');
 
       return {
         encryptedFile,
@@ -95,7 +117,12 @@ export class FileEncryptionService {
       };
     } catch (error) {
       console.error('Encryption failed:', error);
-      throw new Error('Failed to encrypt file');
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+      throw new Error(`Failed to encrypt file: ${error.message}`);
     }
   }
 
@@ -121,7 +148,7 @@ export class FileEncryptionService {
       );
 
       // Create decrypted file
-      const originalFileName = encryptedFile.name.replace('.encrypted', '');
+      const originalFileName = encryptedFile.name.replace('.enc', '');
       return await this.arrayBufferToFile(
         decryptedContent,
         originalFileName,

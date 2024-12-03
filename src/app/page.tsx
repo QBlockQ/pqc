@@ -92,8 +92,15 @@ export default function Home() {
   });
 
   const handleEncrypt = async () => {
-    if (!encryptFile || !encryptionService) return;
-    
+    if (!encryptFile || !encryptionService) {
+      toast({
+        title: "Error",
+        description: "Please select a file to encrypt and wait for the encryption service to initialize.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setProcessing(true);
     try {
       toast({
@@ -111,11 +118,11 @@ export default function Home() {
 
       const { encryptedFile, encryptedKey } = await encryptionService.encrypt(encryptFile, publicKey);
       
-      // Create download links
+      // Download encrypted file first
       const encryptedUrl = URL.createObjectURL(encryptedFile);
       const encryptedLink = document.createElement('a');
       encryptedLink.href = encryptedUrl;
-      encryptedLink.download = encryptedFile.name;
+      encryptedLink.download = encryptedFile.name; // This will be original_name.enc
       document.body.appendChild(encryptedLink);
       encryptedLink.click();
       document.body.removeChild(encryptedLink);
@@ -126,7 +133,7 @@ export default function Home() {
       const privateKeyUrl = URL.createObjectURL(privateKeyBlob);
       const privateKeyLink = document.createElement('a');
       privateKeyLink.href = privateKeyUrl;
-      privateKeyLink.download = 'private_key.key';
+      privateKeyLink.download = `${encryptFile.name}.private.key`;
       document.body.appendChild(privateKeyLink);
       privateKeyLink.click();
       document.body.removeChild(privateKeyLink);
@@ -137,7 +144,7 @@ export default function Home() {
       const encryptedKeyUrl = URL.createObjectURL(encryptedKeyBlob);
       const encryptedKeyLink = document.createElement('a');
       encryptedKeyLink.href = encryptedKeyUrl;
-      encryptedKeyLink.download = 'encrypted_key.key';
+      encryptedKeyLink.download = `${encryptFile.name}.encrypted.key`;
       document.body.appendChild(encryptedKeyLink);
       encryptedKeyLink.click();
       document.body.removeChild(encryptedKeyLink);
