@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build:wasm": "cd src/lib/pqc/wasm && chmod +x build.sh && ./build.sh",
-    "dev": "npm run build:wasm && node scripts/copy-wasm.js && NODE_OPTIONS='--inspect' next dev",
+    "dev": "npm run build:wasm && node scripts/copy-wasm.js && next dev",
     "build": "npm run build:wasm && node scripts/copy-wasm.js && next build",
     "start": "next start",
     "lint": "next lint"

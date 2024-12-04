@@ -18,11 +18,32 @@ export default function Home() {
   const [encryptedKeyFile, setEncryptedKeyFile] = useState<File | null>(null);
   const [processing, setProcessing] = useState(false);
   const [encryptionService, setEncryptionService] = useState<FileEncryptionService | null>(null);
+  const [serviceReady, setServiceReady] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    setEncryptionService(new FileEncryptionService());
-  }, []);
+    const initService = async () => {
+      try {
+        console.log('Creating FileEncryptionService...');
+        const service = new FileEncryptionService();
+        setEncryptionService(service);
+
+        console.log('Waiting for service to be ready...');
+        await service.waitForReady();
+        console.log('Service is ready');
+        setServiceReady(true);
+      } catch (error) {
+        console.error('Failed to initialize encryption service:', error);
+        toast({
+          title: "Initialization Error",
+          description: "Failed to initialize encryption service. Please refresh the page.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    initService();
+  }, [toast]);
 
   const onEncryptDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles && acceptedFiles.length > 0) {
@@ -92,7 +113,7 @@ export default function Home() {
   });
 
   const handleEncrypt = async () => {
-    if (!encryptFile || !encryptionService) {
+    if (!encryptFile || !encryptionService || !serviceReady) {
       toast({
         title: "Error",
         description: "Please select a file to encrypt and wait for the encryption service to initialize.",
@@ -103,33 +124,39 @@ export default function Home() {
 
     setProcessing(true);
     try {
+      console.log('Encryption service ready, generating keys...');
       toast({
         title: "Generating keys",
         description: "Please wait while we generate post-quantum cryptographic keys...",
       });
 
       // Generate key pair
-      const { publicKey, privateKey } = await encryptionService.generateKeyPair();
+      const keyPair = await encryptionService.generateKeyPair();
+      console.log('Key pair generated successfully');
 
       toast({
         title: "Encrypting file",
         description: "Please wait while we encrypt your file using post-quantum cryptography...",
       });
 
-      const { encryptedFile, encryptedKey } = await encryptionService.encrypt(encryptFile, publicKey);
+      console.log('Starting file encryption...');
+      const result = await encryptionService.encrypt(encryptFile, keyPair.publicKey);
+      console.log('File encrypted successfully');
       
       // Download encrypted file first
-      const encryptedUrl = URL.createObjectURL(encryptedFile);
+      console.log('Creating download for encrypted file...');
+      const encryptedUrl = URL.createObjectURL(result.encryptedFile);
       const encryptedLink = document.createElement('a');
       encryptedLink.href = encryptedUrl;
-      encryptedLink.download = encryptedFile.name; // This will be original_name.enc
+      encryptedLink.download = result.encryptedFile.name;
       document.body.appendChild(encryptedLink);
       encryptedLink.click();
       document.body.removeChild(encryptedLink);
       URL.revokeObjectURL(encryptedUrl);
 
       // Save private key as a file
-      const privateKeyBlob = new Blob([privateKey], { type: 'application/octet-stream' });
+      console.log('Creating download for private key...');
+      const privateKeyBlob = new Blob([keyPair.privateKey], { type: 'application/octet-stream' });
       const privateKeyUrl = URL.createObjectURL(privateKeyBlob);
       const privateKeyLink = document.createElement('a');
       privateKeyLink.href = privateKeyUrl;
@@ -140,7 +167,8 @@ export default function Home() {
       URL.revokeObjectURL(privateKeyUrl);
 
       // Save encrypted key as a file
-      const encryptedKeyBlob = new Blob([encryptedKey], { type: 'application/octet-stream' });
+      console.log('Creating download for encrypted key...');
+      const encryptedKeyBlob = new Blob([result.encryptedKey], { type: 'application/octet-stream' });
       const encryptedKeyUrl = URL.createObjectURL(encryptedKeyBlob);
       const encryptedKeyLink = document.createElement('a');
       encryptedKeyLink.href = encryptedKeyUrl;
@@ -157,9 +185,24 @@ export default function Home() {
       });
     } catch (error) {
       console.error('Encryption failed:', error);
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        cause: error.cause
+      });
+      
+      // Try to get more information about the encryption service state
+      try {
+        const isReady = encryptionService.isReady();
+        console.log('Encryption service ready state:', isReady);
+      } catch (e) {
+        console.error('Failed to check encryption service state:', e);
+      }
+
       toast({
         title: "Encryption failed",
-        description: "There was an error encrypting your file. Please try again.",
+        description: `Error: ${error.message}. Please try again.`,
         variant: "destructive",
       });
     } finally {
@@ -168,7 +211,7 @@ export default function Home() {
   };
 
   const handleDecrypt = async () => {
-    if (!decryptFile || !privateKeyFile || !encryptedKeyFile || !encryptionService) return;
+    if (!decryptFile || !privateKeyFile || !encryptedKeyFile || !encryptionService || !serviceReady) return;
     
     setProcessing(true);
     try {
@@ -211,9 +254,24 @@ export default function Home() {
       });
     } catch (error) {
       console.error('Decryption failed:', error);
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        cause: error.cause
+      });
+      
+      // Try to get more information about the encryption service state
+      try {
+        const isReady = encryptionService.isReady();
+        console.log('Encryption service ready state:', isReady);
+      } catch (e) {
+        console.error('Failed to check encryption service state:', e);
+      }
+
       toast({
         title: "Decryption failed",
-        description: "There was an error decrypting your file. Please make sure you have the correct private key and encrypted key.",
+        description: `Error: ${error.message}. Please make sure you have the correct private key and encrypted key.`,
         variant: "destructive",
       });
     } finally {
@@ -341,13 +399,14 @@ export default function Home() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-2xl">
       <div className="flex flex-col items-center justify-center mb-8 text-center">
-        <div className="relative w-48 h-48 mb-6">
+        <div className="flex-1 flex flex-col items-center justify-center p-8">
           <Image
             src="/postquantum.png"
-            alt="Quantum-Safe Qbits Logo"
-            fill
-            className="object-contain dark:brightness-100 brightness-90"
-            priority
+            alt="Post Quantum Cryptography"
+            width={540}
+            height={540}
+            priority={true}
+            className="max-w-full h-auto mb-8"
           />
         </div>
         <h1 className="text-4xl font-bold tracking-tight">
@@ -393,7 +452,7 @@ export default function Home() {
                     <Button 
                       onClick={handleEncrypt} 
                       className="w-full" 
-                      disabled={!encryptFile || processing}
+                      disabled={!encryptFile || processing || !serviceReady}
                     >
                       {processing ? (
                         <>
@@ -440,7 +499,7 @@ export default function Home() {
                     <Button 
                       onClick={handleDecrypt} 
                       className="w-full" 
-                      disabled={!decryptFile || !privateKeyFile || !encryptedKeyFile || processing}
+                      disabled={!decryptFile || !privateKeyFile || !encryptedKeyFile || processing || !serviceReady}
                     >
                       {processing ? (
                         <>

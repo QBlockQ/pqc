@@ -1,14 +1,51 @@
 import { KyberKEM } from './kyber';
 
 export class FileEncryptionService {
-  private kyber: KyberKEM;
+  private kyber: KyberKEM | null = null;
+  private initializationPromise: Promise<void>;
 
   constructor() {
+    this.initializationPromise = this.initialize();
+  }
+
+  private async initialize() {
     try {
-      this.kyber = KyberKEM.getInstance();
+      console.log('Initializing FileEncryptionService...');
+      this.kyber = await KyberKEM.getInstance();
+      console.log('FileEncryptionService initialized successfully');
     } catch (error) {
       console.error('Failed to initialize encryption service:', error);
-      throw new Error('Failed to initialize encryption service. Please try again.');
+      throw new Error(`Failed to initialize encryption service: ${error.message}`);
+    }
+  }
+
+  public isReady(): boolean {
+    const ready = this.kyber !== null && this.kyber.isInitialized();
+    console.log('FileEncryptionService ready state:', ready);
+    return ready;
+  }
+
+  public async waitForReady(timeout: number = 10000): Promise<void> {
+    console.log('Waiting for FileEncryptionService to be ready...');
+    try {
+      await Promise.race([
+        this.initializationPromise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Initialization timeout')), timeout))
+      ]);
+      console.log('FileEncryptionService is now ready');
+    } catch (error) {
+      console.error('FileEncryptionService initialization failed:', error);
+      // Retry initialization
+      console.log('Retrying initialization...');
+      this.initializationPromise = this.initialize();
+      throw error;
+    }
+  }
+
+  private async ensureInitialized() {
+    if (!this.isReady()) {
+      console.log('FileEncryptionService not ready, waiting for initialization...');
+      await this.waitForReady();
     }
   }
 
@@ -54,10 +91,20 @@ export class FileEncryptionService {
   }
 
   public async generateKeyPair(): Promise<{ publicKey: Uint8Array; privateKey: Uint8Array }> {
-    return await this.kyber.generateKeyPair();
+    console.log('Generating key pair...');
+    await this.ensureInitialized();
+    try {
+      const keyPair = await this.kyber!.generateKeyPair();
+      console.log('Key pair generated successfully');
+      return keyPair;
+    } catch (error) {
+      console.error('Failed to generate key pair:', error);
+      throw new Error(`Failed to generate key pair: ${error.message}`);
+    }
   }
 
   public async encrypt(file: File, publicKey: Uint8Array): Promise<{ encryptedFile: File; encryptedKey: Uint8Array }> {
+    await this.ensureInitialized();
     try {
       console.log('Starting file encryption process...');
       
@@ -92,7 +139,7 @@ export class FileEncryptionService {
       // Encrypt AES key with Kyber
       console.log('Encapsulating key with Kyber...');
       console.log('Public key length:', publicKey.length);
-      const { ciphertext } = await this.kyber.encapsulate(publicKey);
+      const { ciphertext } = await this.kyber!.encapsulate(publicKey);
       console.log('Key encapsulated successfully');
       
       // Combine IV and encrypted content
@@ -127,9 +174,10 @@ export class FileEncryptionService {
   }
 
   public async decrypt(encryptedFile: File, encryptedKey: Uint8Array, privateKey: Uint8Array): Promise<File> {
+    await this.ensureInitialized();
     try {
       // Decrypt the AES key using Kyber
-      const decryptedKeyBuffer = await this.kyber.decapsulate(privateKey, encryptedKey);
+      const decryptedKeyBuffer = await this.kyber!.decapsulate(privateKey, encryptedKey);
       const aesKey = await this.importKey(decryptedKeyBuffer);
 
       // Get encrypted content and IV
